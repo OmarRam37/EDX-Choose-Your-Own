@@ -6,10 +6,12 @@ if(!require(tidymodels)) install.packages("tidymodels", repos = "http://cran.us.
 if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org")
 if(!require(e1071)) install.packages("e1071", repos = "http://cran.us.r-project.org")
 if(!require(ranger)) install.packages("ranger", repos = "http://cran.us.r-project.org")
-if(!require(corrr)) install.packages("httr", repos = "http://cran.us.r-project.org")
+if(!require(corrr)) install.packages("corrr", repos = "http://cran.us.r-project.org")
 if(!require(httr)) install.packages("httr", repos = "http://cran.us.r-project.org")
-
+library(corrr)
 download.file(url = "https://github.com/OmarRam37/EDX-Choose-Your-Own/archive/master.zip",destfile = "EDXCYO.zip")
+unzip(zipfile = "EDXCYO.zip")
+setwd("EDX-Choose-Your-Own-master/data-files")
 file_list <- list.files()
 for (file in file_list){
   
@@ -62,7 +64,7 @@ ncol(dataset_c)
 skim(dataset_c)
 dataset_c %>% group_by(type) %>% summarize(total = sum(amount), count = n())
 dataset_c %>% ggplot(aes(amount)) + geom_histogram()
-dataset_c %>% select(amount, newbalanceDest, newbalanceOrig, oldbalanceDest, oldbalanceOrig) %>% correlation() %>% rplot(shape = 15, colors = c("red","green"))
+dataset_c %>% select(amount, newbalanceDest, newbalanceOrig, oldbalanceDest, oldbalanceOrg) %>% correlate() %>% rplot(shape = 15, colors = c("red","green"))
 
 set.seed(37)
 data_split <- initial_split(dataset_c)
@@ -75,13 +77,13 @@ data_rec <- recipe(isFraud ~ ., data = data_train) %>%
   step_dummy(all_nominal(),-isFraud,-isFlaggedFraud)
 data_prep <- data_rec %>% prep()
 data_juice <- juice(data_prep)
-data_juice %>% ggplot(aes(amount)) + geom_histogram() + xlim(c(0,7.5))
+test_proc <- bake(data_prep, new_data = data_test)
 control <- trainControl(method = "cv", number = 10, p = 0.9)
+rm(dataset_c,data_train,data_test,data_split,data_rec,data_prep)
 train_glm <- train(isFraud ~ ., 
                    method = "glm", 
                    data = data_juice,
                    trControl = control)
-test_proc <- bake(data_prep, new_data = data_test)
 confusionMatrix(data = predict(train_glm, test_proc), reference = test_proc$isFraud)
 train_rpart <- train(isFraud ~ ., 
                      method = "rpart", 
