@@ -9,7 +9,7 @@ if(!require(ranger)) install.packages("ranger", repos = "http://cran.us.r-projec
 if(!require(corrr)) install.packages("httr", repos = "http://cran.us.r-project.org")
 if(!require(httr)) install.packages("httr", repos = "http://cran.us.r-project.org")
 
-download.file(url = )
+download.file(url = "https://github.com/OmarRam37/EDX-Choose-Your-Own/archive/master.zip",destfile = "EDXCYO.zip")
 file_list <- list.files()
 for (file in file_list){
   
