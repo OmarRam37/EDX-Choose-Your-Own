@@ -6,7 +6,10 @@ if(!require(tidymodels)) install.packages("tidymodels", repos = "http://cran.us.
 if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org")
 if(!require(e1071)) install.packages("e1071", repos = "http://cran.us.r-project.org")
 if(!require(ranger)) install.packages("ranger", repos = "http://cran.us.r-project.org")
-setwd(dir = "data-files/")
+if(!require(corrr)) install.packages("httr", repos = "http://cran.us.r-project.org")
+if(!require(httr)) install.packages("httr", repos = "http://cran.us.r-project.org")
+
+download.file(url = )
 file_list <- list.files()
 for (file in file_list){
   
@@ -54,8 +57,13 @@ dataset %>% group_by(combination, isFraud) %>% summarize(count = n())
 dataset %>% group_by(isFlaggedFraud, isFraud) %>% summarize(count = n())
 dataset_c <- dataset %>% filter(combination == "CC") %>% select(-combination,-X1,-step, -nameDest, -nameOrig)
 rm(dataset)
+nrow(dataset_c)
+ncol(dataset_c)
 skim(dataset_c)
-dataset_c %>% ggplot(aes(amount)) + geom_histogram() + xlim(c(0,9000000))
+dataset_c %>% group_by(type) %>% summarize(total = sum(amount), count = n())
+dataset_c %>% ggplot(aes(amount)) + geom_histogram()
+dataset_c %>% select(amount, newbalanceDest, newbalanceOrig, oldbalanceDest, oldbalanceOrig) %>% correlation() %>% rplot(shape = 15, colors = c("red","green"))
+
 set.seed(37)
 data_split <- initial_split(dataset_c)
 data_train <- training(data_split)
@@ -90,7 +98,8 @@ train_ranger<- train(isFraud ~ .,
                      tuneGrid = data.frame(mtry = seq(2,5,1),
                                            splitrule = "gini",
                                            min.node.size = seq(1,4,1)),
-                     trControl = control)
+                     trControl = control,
+                     num.trees = 100)
 
 matrix_ranger <- confusionMatrix(data = predict(train_ranger, test_proc), reference = test_proc$isFraud)
 
