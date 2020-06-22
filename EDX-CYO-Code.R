@@ -8,7 +8,16 @@ if(!require(e1071)) install.packages("e1071", repos = "http://cran.us.r-project.
 if(!require(ranger)) install.packages("ranger", repos = "http://cran.us.r-project.org")
 if(!require(corrr)) install.packages("corrr", repos = "http://cran.us.r-project.org")
 if(!require(httr)) install.packages("httr", repos = "http://cran.us.r-project.org")
+library(tidyverse)
+library(caret)
+library(data.table)
+library(skimr)
+library(tidymodels)
+library(rpart)
+library(e1071)
+library(ranger)
 library(corrr)
+library(httr)
 download.file(url = "https://github.com/OmarRam37/EDX-Choose-Your-Own/archive/master.zip",destfile = "EDXCYO.zip")
 unzip(zipfile = "EDXCYO.zip")
 setwd("EDX-Choose-Your-Own-master/data-files")
@@ -72,11 +81,11 @@ data_train <- training(data_split)
 data_test <- testing(data_split)
 data_rec <- recipe(isFraud ~ ., data = data_train) %>%
   step_corr(all_numeric()) %>%
-  step_normalize(all_numeric()) %>%
   step_zv(all_numeric()) %>%
   step_dummy(all_nominal(),-isFraud,-isFlaggedFraud)
 data_prep <- data_rec %>% prep()
 data_juice <- juice(data_prep)
+head(data_juice)
 test_proc <- bake(data_prep, new_data = data_test)
 control <- trainControl(method = "cv", number = 10, p = 0.9)
 rm(dataset_c,data_train,data_test,data_split,data_rec,data_prep)
@@ -84,7 +93,10 @@ train_glm <- train(isFraud ~ .,
                    method = "glm", 
                    data = data_juice,
                    trControl = control)
-confusionMatrix(data = predict(train_glm, test_proc), reference = test_proc$isFraud)
+pred_glm <- predict(train_glm, test_proc)
+mat_glm <- confusionMatrix(data = pred_glm , reference = test_proc$isFraud)
+result <- tibble(method="glm",sensitivity = , specificity = , overall = )
+result
 train_rpart <- train(isFraud ~ ., 
                      method = "rpart", 
                      data = data_juice,
@@ -92,8 +104,10 @@ train_rpart <- train(isFraud ~ .,
                      trControl = control)
 plot(train_rpart)
 plot(train_rpart$finalModel, margin = 0.1)
-text(train_rpart$finalModel, cex = 0.75)
-confusionMatrix(data = predict(train_rpart, test_proc), reference = test_proc$isFraud)
+pred_rpart <- predict(train_rpart, test_proc)
+mat_rpart <- confusionMatrix(data = pred_rpart , reference = test_proc$isFraud)
+result <- tibble(method="rpart",sensitivity = , specificity = , overall = )
+result
 train_ranger<- train(isFraud ~ ., 
                      method = "ranger", 
                      data = data_juice,
@@ -102,6 +116,9 @@ train_ranger<- train(isFraud ~ .,
                                            min.node.size = seq(1,4,1)),
                      trControl = control,
                      num.trees = 100)
-
-matrix_ranger <- confusionMatrix(data = predict(train_ranger, test_proc), reference = test_proc$isFraud)
+plot(train_ranger)
+pred_ranger <- predict(train_ranger, test_proc)
+mat_ranger <- confusionMatrix(data = pred_ranger , reference = test_proc$isFraud)
+result <- tibble(method="ranger",sensitivity = , specificity = , overall = )
+result
 
