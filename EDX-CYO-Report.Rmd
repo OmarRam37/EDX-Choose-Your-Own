@@ -74,6 +74,7 @@ rm(file, file_list)
 setwd("..")
 dataset <- dataset %>% mutate( combination = as.factor( paste(str_sub(nameOrig,end = 1),str_sub(nameDest,end = 1), sep = "")), isFraud = as.factor(isFraud), isFlaggedFraud = as.factor(isFlaggedFraud), type = as.factor(type))
 ```
+
 \section{Introduction}
 The following work was made using a synthetic dataset generated using the simulator called PaySim. PaySim uses aggregated data from a private dataset to generate a synthetic dataset that resembles the normal operation of transactions and injects malicious behavior to later evaluate the performance of fraud detection methods. It is well known that financial or specifically bank transactions have a private nature. To this day it is very difficult to get a publicly available dataset that is made up of real data. PaySim is a special approach to solve the problem of the lack of public available datasets on financial services and specially in the emerging mobile money transactions domain.
 PaySim simulates mobile money transactions based on a sample of real transactions extracted from one month of financial logs from a mobile money service implemented in an African country. The original logs were provided by a multinational company, who is the provider of the mobile financial service which is currently running in more than 14 countries all around the world.
@@ -85,10 +86,13 @@ First, let’s take a look at the structure of the head in the dataset so we can
 ```{r head_data, echo= TRUE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 head(dataset)  %>% knitr::kable()
 ```
+
 First Row:
+
 ```{r first_row_data, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 dataset[1,] %>% knitr::kable()
 ```
+
 Column headers:
 \begin{itemize}
 \item step - maps a unit of time in the real world. In this case 1 step is 1 hour of time. Total steps 744 (30 days simulation).
@@ -104,25 +108,35 @@ Column headers:
 \item isFlaggedFraud - The business model aims to control massive transfers from one account to another and flags illegal attempts. An illegal attempt in this dataset is an attempt to transfer more than 200.000 in a single transaction.
 \end{itemize}
 As you read on the previous description of the data fields, information of customers that start with M (Merchants) is missing. So, we are going to take a look at the different transactions between types of customers.
+
 ```{r show_cm, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 dataset %>% group_by(combination, isFraud) %>% summarize(count = n()) %>% knitr::kable()
 ```
+
 We can appreciate, from the table that we generated, that there are only two combinations of type of customers. We have transactions between Type C clients and other type C clients and transactions between type C clients and type M clients. The most important fact from this table is that transactions C to M were never frauds. This behavior is probably caused by the missing data. We are going to use a simple line of code to get rid of those lines. Also, the columns step, nameOrig, nameDest are also going to be filtered out. Step is going to be eliminated because it only refers to the amount of time that the dataset contains. I personally don’t see any value in maintaining nameOrig and nameDest because this model will try to identify frauds without taking into account the person. The model is going to be build like that because we don’t have any characteristics of the persons committing the frauds that can be related to other cases. Another reason to leave the variables out is that they are going to complicate the models and I don’t have the resources to make it work. So, here is our code.
+
 ```{r erase_CM, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
-dataset_c <- dataset %>% filter(combination == "CC") %>% select(-combination,-X1,-step, -nameDest, -nameOrig)
+dataset_c <- dataset %>% filter(combination == "CC") %>% select(-combination,-X1,-step, 
+                                                                -nameDest, -nameOrig)
 ```
+
 Now that we eliminated the rows and the columns that were not useful, we are left with this number of rows and columns:
+
 ```{r remove_1, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 rm(dataset)
 ```
+
 ```{r number_rows_columns, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
-print(paste0("Rows: ",nrow(dataset_c)))
-print(paste0("Rows: ",ncol(dataset_c)))
+nrow(dataset_c)
+ncol(dataset_c)
 ```
+
 Our dataset is now filtered with only the values that we want to study. Let’s start with a quick skim of our data so we can draw some quick conclusions.
-```{r skim, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
+
+```{r skim, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 skim(dataset_c)
 ```
+
 The data skim of our data shows some easy information from our data like:
 \begin{itemize}
 \item type – is a factor that has 4 levels 
@@ -131,38 +145,51 @@ isFlaggedFraud – As isFraud, this is a column with 2 levels of binary values.
 \item Amount, oldbalanceOrg, newbalanceOrig, newbalanceDest – Thid variables are al numeric and they have a useless distribution of values. The skim gives us a small example of how a hisrogram of the values would look.
 \end{itemize}
 This analysis starts by going in the obvious direction. Let’s find out how many frauds are identified in the dataset.
+
 ```{r count_frauds, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 dataset_c %>% group_by(isFlaggedFraud, isFraud) %>% summarize(count = n()) %>% knitr::kable()
 ```
+
 We will complement our analysis of the type variable by taking a look at the amount of money that each level has in total and the number of transactions that have been made by each type.
+
 ```{r type_ana, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 dataset_c %>% group_by(type) %>% summarize(total = sum(amount), count = n()) %>% knitr::kable()
 ```
+
 This is the complete representation of the histogram of the amount column. As we already established this distribution can be seen in the other numeric variables.
+
 ```{r hist_amount, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 dataset_c %>% ggplot(aes(amount)) + geom_histogram()
 ```
+
 The real conclusion from the previous graph is that the majority of transactions are of small amounts but there have been very few cases where a transaction consists of a lot of money. To continue this analysis, we will take a look at the correlation between our numeric values. 
+
 ```{r corr_graph, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
-dataset_c %>% select(amount, newbalanceDest, newbalanceOrig, oldbalanceDest, oldbalanceOrg) %>% correlate() %>% rplot(shape = 15, colors = c("red","green"))
+dataset_c %>% select(amount, newbalanceDest, newbalanceOrig, oldbalanceDest, oldbalanceOrg) %>%
+  correlate() %>% rplot(shape = 15, colors = c("red","green"))
 ```
+
 It’s easy to understand some of the relationships that we can see in our graph. The old a new balance of each account had to be extremely correlated and that is what we can see. We will only use one of the variables from each account because their correlation is almost 1. We must remember that the other relationships in our data have already been identified. To be clear, all the transactions that are True in the variable isFlaggedFraud are Frauds.
 
 \section{Modeling}
 For the modeling stage of this project we will be using a different library to prepare the data a little more. Tidymodels is a library that I have been using recently and I consider it has made the final preparation of datasets easier. We start by using the function initial_split() that will help us generate the indexes to separate data into the train and test sets. The initial split by default follow a proportion of ¾ training and the rest for testing. I have read that any proportion between 70-30 to 90-10 is used for machine learning. In this model we will be using the value that comes by default because it is within the established range and because the dataset is so big that it will be easier to train if we have a bigger testing dataset. So, here is the code used to generate the train and test sets.
+
 ```{r split, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 set.seed(37)
 data_split <- initial_split(dataset_c)
 data_train <- training(data_split)
 data_test <- testing(data_split)
 ```
+
 Now, it is time to work with a recipe. One of the most attractive thing that I have found in tidymodels is that you generate “recipes” to prepare your data. Basically, recipes are a series of steps that will be followed to make estra preparations in our dataset. Here is the recipe that I decided to use.
+
 ```{r recipe, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 data_rec <- recipe(isFraud ~ ., data = data_train) %>%
   step_corr(all_numeric()) %>%
   step_zv(all_numeric()) %>%
   step_dummy(all_nominal(),-isFraud,-isFlaggedFraud)
 ```
+
 This is the complete breakdown of the recipe:
 \begin{enumerate}
 \item We describe the formula we will be using on our models. In this case we want to determine if the transaction is a Fraud
@@ -171,23 +198,31 @@ This is the complete breakdown of the recipe:
 \item We make dummy variables for the factors. This step is the most interesting. In this case, the types of transaction are taken and unpivoted. The values in types become binary columns in our dataset. This step makes the training of model so much easier.
 \end{enumerate}
 The next step is to apply the data transformation to our dataset with the selected steps. We can finally see our dataset in its final form.
+
 ```{r data_prep, echo= TRUE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 data_prep <- data_rec %>% prep()
 data_juice <- juice(data_prep)
 head(data_juice)
 ```
+
 We end up with a dataset with 9 variables that is ready to enter to the models. The dataset for training looks pretty good for me. So, we just have to apply the recipe to our train set to get it in the same format. Is as easy as this line of code.
+
 ```{r test_prep, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 test_proc <- bake(data_prep, new_data = data_test)
 ```
+
 Now is the time to talk about the models we are going to be using. For this project we are going to compare the performance of a Generalized Linear Model (glm), Recursive Partitioning and Regression Trees (rpart) and Random Forest (ranger). I personally have great expectations of the rpart model. Our trControl for every model training I going to be the same, 10-fold cross-validation with 90% of the data. Let’s set the control variable.
+
 ```{r control, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 control <- trainControl(method = "cv", number = 10, p = 0.9)
 ```
+
 ```{r remove_2, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 rm(dataset_c,data_train,data_test,data_split,data_rec,data_prep)
 ```
+
 The glm model will not be tuned. Training the model can be done by executing this code. We are going to directly test our model so we can start looking at some results.
+
 ```{r model_glm, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 train_glm <- train(isFraud ~ ., 
                    method = "glm", 
@@ -196,7 +231,9 @@ train_glm <- train(isFraud ~ .,
 pred_glm <- predict(train_glm, test_proc)
 mat_glm <- confusionMatrix(data = pred_glm , reference = test_proc$isFraud)
 ```
+
 We could really be full of joy because the model did so good in the first try but if we look at the results correctly, we can see that it is very flawed. Here is the table with the results for glm. 
+
 ```{r result_glm, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 result <- tibble(method="glm",
                  sensitivity = sensitivity(mat_glm$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
@@ -204,12 +241,16 @@ result <- tibble(method="glm",
                  overall = accuracy(mat_glm$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5))
 result %>% knitr::kable()
 ```
+
 Our model was able to get an overall accuracy of 0.998 but if we analyze the specificity and sensitivity we can see that only one got good results. The sensitivity of the model is undoubtedly good but we only could get a specificity of 0.21. Why is this a problem? The problem is that specificity is the whole reason we are here. In this model sensitivity is in charge of measuring accuracy of correct cases that aren’t fraud. Specificity is measuring the amount of frauds that we could identify correctly. This model isn’t able to identify frauds. Now we should ask ourselves why do we get an overall accuracy as great as the one we got. The answer can be determined in the data itself. Our dataset has so many cases that aren’t fraud that if you get the majority of them correctly, that is going to be reflected in the final score. We have to get a better model because if you work in a bank, you don’t care if you identify a non-fraudulent case as a fraud. You won’t be losing any money in this transaction. The whole purpose of the exercise is to identify cases where you be losing money. You don’t care about the one million cases that weren’t a fraud. You care about the single case that cost you possibly millions of dollars.
+
 ```{r sanitation_1, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 rm(mat_glm, train_glm, pred_glm)
 gc()
 ```
+
 We now move on to a rpart model that we expect to return a better specificity score. The use of the train function makes the implementation of a new model very easy. We can use the same structure as the glm model, but we have to make use of tuning parameter. For the rpart model we will be tuning our complexity parameter. We will star with a small complexity parameter that will go from 0 to 1 with a 0.25 step. The control of this will stay with the same 10-fold cross-validation.
+
 ```{r model_rpart, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 train_rpart <- train(isFraud ~ .,
                      method = "rpart",
@@ -219,15 +260,21 @@ train_rpart <- train(isFraud ~ .,
 pred_rpart <- predict(train_rpart, test_proc)
 mat_rpart <- confusionMatrix(data = pred_rpart , reference = test_proc$isFraud)
 ```
+
 The effect of our different complexity parameters can be seen in the next plot.
+
 ```{r values_rpart, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 plot(train_rpart, margin = 0.3)
 ```
+
 We can see that 0 is the optimal value for the complexity parameter. It is curious that the bigger the parameter, the farther we get from an acceptable accuracy in the model. A very interesting image is the tree that gets generated from the optimal train of our model. We can see the tree or at least something that resembles a tree in the image below.
+
 ```{r tree_rpart, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 plot(train_rpart$finalModel, margin = 0.1)
 ```
+
 We can see that the tree is so big and maybe so complex that an image as small as this one can’t fit it. This image isn’t necessarily wrong because it shows how difficult it would have been for a human to do this. Let's save the results that we got from our model into our results table.
+
 ```{r result_rpart, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 result <- bind_rows(result, tibble(method="rpart",
                                    sensitivity = sensitivity(mat_rpart$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
@@ -235,19 +282,33 @@ result <- bind_rows(result, tibble(method="rpart",
                                    overall = accuracy(mat_rpart$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5)))
 result %>% knitr::kable()
 ```
+
 ```{r sanitation_2, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 rm(mat_rpart, train_rpart, pred_rpart)
 gc()
 ```
+
 The results from the rpart model present the same characteristic as the glm model. The sensitivity of the model is great because we now got 0.999. The sensitivity is almost optimized to 1, but the specificity continues to be a problem. We can’t complain if we got a specificity that is 3 time better than the one in the first model but still, we have to wonder is this is the best that we can get. 
-```{r model_ranger, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
-
-```
 The results from the rpart model present the same characteristic as the glm model. The sensitivity of the model is great because we now got 0.999. The sensitivity is almost optimized to 1, but the specificity continues to be a problem. We can’t complain if we got a specificity that is 3 time better than the one in the first model but still, we have to wonder is this is the best that we can get. The last model we are going to try is a random forest using the library ranger. Our model is so optimized in the recipe and the processing resources in the computer are so limited that we will go on with static tuning parameters. We already know that the ranger model has three tuning parameters that are the mtry, splitrule and min.node.size. We are also going to change the number of trees that will get generated so we can actually get some results. For our mtry we are going to use the total number of variables that in this case are 8. The splitrule is going to be left to the default value “gini”. The min.node.size is going to be left at 1 because it is the smallest number allowed for a classification model. We won't be able to get a good graph from this model because we are not using many tuning parameters.We will be relying on the single accuracy, specificitu and sensitivity of these parameters.
-```{r result_ranger, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+
+```{r model_ranger, echo= FALSE, eval=FALSE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+train_ranger<- train(isFraud ~ .,
+                     method = "ranger",
+                     data = data_juice,
+                     tuneGrid = data.frame(mtry = 8,
+                                           splitrule = "gini",
+                                           min.node.size = 1
+                     ),
+                     trControl = control,
+                     num.trees = 100)
+pred_ranger <- predict(train_ranger, test_proc)
+mat_ranger <- confusionMatrix(data = pred_ranger , reference = test_proc$isFraud)
 
 ```
-To be very honest I tried each value of the mtry individually in order to know if that was the right direction. I already knew that 8 would give the best answer but it would have taken 2 days to get to print my report. Sacrifices were made. All of the work and effort we put in this project was to get this final table with a good comparison of three different models. What we get to see is that our final two models aren’t that different. 
+
+To be very honest I tried each value of the mtry individually in order to know if that was the right direction. I already knew that 8 would give the best answer but it would have taken 2 days to get to print my report. Sacrifices were made. All of the work and effort we put in this project was to get this final table with a good comparison of three different models. What we get to see is that our the rpart and ranger models aren’t that different.Unfortunately I was't able to show for it. The real comparsion would be between the glm and the rpart models.
+
+
 
 \section{Conclusion}
 First of all I would like to say that this project was really entertaining and really gets you to think. I’m obviously talking about the models and the numbers but also about picking the right dataset. It was astonishing how long it took me to decide the theme about this project. Personally, I wanted something that related to me in some way or at least that would help in the future. I work in a financial institution so now you know how it relate to me. Now, talking about the models. I personally would have chosen rpart without a doubt. Ranger got the best results but the time you spend on getting them may pale in comparison to getting the rpart results. Maybe I’m just talking from a personal perspective with limited resources but that is how I see it. The most amazing part about the results was how “accurate” they were from the start, but it didn’t really mean anything. The whole project didn’t depend on how good the overall result was, it depended on how good the specificity was. You always have to know what you are looking for and how important the results of your models are. 
