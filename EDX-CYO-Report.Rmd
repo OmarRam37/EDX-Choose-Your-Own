@@ -82,11 +82,11 @@ Our modeling goal here is to predict which transactions are frauds based on the 
 \section{Data Cleaning}
 First, let’s take a look at the structure of the head in the dataset so we can get familiar with the columns.
 
-```{r head_data, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r head_data, echo= TRUE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 head(dataset)  %>% knitr::kable()
 ```
 First Row:
-```{r first_row_data, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r first_row_data, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 dataset[1,] %>% knitr::kable()
 ```
 Column headers:
@@ -104,7 +104,7 @@ Column headers:
 \item isFlaggedFraud - The business model aims to control massive transfers from one account to another and flags illegal attempts. An illegal attempt in this dataset is an attempt to transfer more than 200.000 in a single transaction.
 \end{itemize}
 As you read on the previous description of the data fields, information of customers that start with M (Merchants) is missing. So, we are going to take a look at the different transactions between types of customers.
-```{r show_cm, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r show_cm, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 dataset %>% group_by(combination, isFraud) %>% summarize(count = n()) %>% knitr::kable()
 ```
 We can appreciate, from the table that we generated, that there are only two combinations of type of customers. We have transactions between Type C clients and other type C clients and transactions between type C clients and type M clients. The most important fact from this table is that transactions C to M were never frauds. This behavior is probably caused by the missing data. We are going to use a simple line of code to get rid of those lines. Also, the columns step, nameOrig, nameDest are also going to be filtered out. Step is going to be eliminated because it only refers to the amount of time that the dataset contains. I personally don’t see any value in maintaining nameOrig and nameDest because this model will try to identify frauds without taking into account the person. The model is going to be build like that because we don’t have any characteristics of the persons committing the frauds that can be related to other cases. Another reason to leave the variables out is that they are going to complicate the models and I don’t have the resources to make it work. So, here is our code.
@@ -115,12 +115,12 @@ Now that we eliminated the rows and the columns that were not useful, we are lef
 ```{r remove_1, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
 rm(dataset)
 ```
-```{r number_rows_columns, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
-nrow(dataset_c)
-ncol(dataset_c)
+```{r number_rows_columns, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
+print(paste0("Rows: ",nrow(dataset_c)))
+print(paste0("Rows: ",ncol(dataset_c)))
 ```
 Our dataset is now filtered with only the values that we want to study. Let’s start with a quick skim of our data so we can draw some quick conclusions.
-```{r skim, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r skim, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 skim(dataset_c)
 ```
 The data skim of our data shows some easy information from our data like:
@@ -131,11 +131,11 @@ isFlaggedFraud – As isFraud, this is a column with 2 levels of binary values.
 \item Amount, oldbalanceOrg, newbalanceOrig, newbalanceDest – Thid variables are al numeric and they have a useless distribution of values. The skim gives us a small example of how a hisrogram of the values would look.
 \end{itemize}
 This analysis starts by going in the obvious direction. Let’s find out how many frauds are identified in the dataset.
-```{r count_frauds, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r count_frauds, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 dataset_c %>% group_by(isFlaggedFraud, isFraud) %>% summarize(count = n()) %>% knitr::kable()
 ```
 We will complement our analysis of the type variable by taking a look at the amount of money that each level has in total and the number of transactions that have been made by each type.
-```{r type_ana, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r type_ana, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 dataset_c %>% group_by(type) %>% summarize(total = sum(amount), count = n()) %>% knitr::kable()
 ```
 This is the complete representation of the histogram of the amount column. As we already established this distribution can be seen in the other numeric variables.
@@ -171,7 +171,7 @@ This is the complete breakdown of the recipe:
 \item We make dummy variables for the factors. This step is the most interesting. In this case, the types of transaction are taken and unpivoted. The values in types become binary columns in our dataset. This step makes the training of model so much easier.
 \end{enumerate}
 The next step is to apply the data transformation to our dataset with the selected steps. We can finally see our dataset in its final form.
-```{r data_prep, echo= TRUE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r data_prep, echo= TRUE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 data_prep <- data_rec %>% prep()
 data_juice <- juice(data_prep)
 head(data_juice)
@@ -197,7 +197,7 @@ pred_glm <- predict(train_glm, test_proc)
 mat_glm <- confusionMatrix(data = pred_glm , reference = test_proc$isFraud)
 ```
 We could really be full of joy because the model did so good in the first try but if we look at the results correctly, we can see that it is very flawed. Here is the table with the results for glm. 
-```{r result_glm, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r result_glm, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 result <- tibble(method="glm",
                  sensitivity = sensitivity(mat_glm$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
                  specificity = specificity(mat_glm$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
@@ -220,15 +220,15 @@ pred_rpart <- predict(train_rpart, test_proc)
 mat_rpart <- confusionMatrix(data = pred_rpart , reference = test_proc$isFraud)
 ```
 The effect of our different complexity parameters can be seen in the next plot.
-```{r values_rpart, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
-plot(train_rpart)
+```{r values_rpart, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
+plot(train_rpart, margin = 0.3)
 ```
 We can see that 0 is the optimal value for the complexity parameter. It is curious that the bigger the parameter, the farther we get from an acceptable accuracy in the model. A very interesting image is the tree that gets generated from the optimal train of our model. We can see the tree or at least something that resembles a tree in the image below.
-```{r tree_rpart, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r tree_rpart, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 plot(train_rpart$finalModel, margin = 0.1)
 ```
 We can see that the tree is so big and maybe so complex that an image as small as this one can’t fit it. This image isn’t necessarily wrong because it shows how difficult it would have been for a human to do this. Let's save the results that we got from our model into our results table.
-```{r result_rpart, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
+```{r result_rpart, echo= FALSE, eval=TRUE, warning=FALSE, error=FALSE, message=FALSE}
 result <- bind_rows(result, tibble(method="rpart",
                                    sensitivity = sensitivity(mat_rpart$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
                                    specificity = specificity(mat_rpart$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
@@ -241,25 +241,11 @@ gc()
 ```
 The results from the rpart model present the same characteristic as the glm model. The sensitivity of the model is great because we now got 0.999. The sensitivity is almost optimized to 1, but the specificity continues to be a problem. We can’t complain if we got a specificity that is 3 time better than the one in the first model but still, we have to wonder is this is the best that we can get. 
 ```{r model_ranger, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
-train_ranger<- train(isFraud ~ .,
-                     method = "ranger",
-                     data = data_juice,
-                     tuneGrid = data.frame(mtry = 8,
-                                           splitrule = "gini",
-                                           min.node.size = 1
-                     ),
-                     trControl = control,
-                     num.trees = 100)
-pred_ranger <- predict(train_ranger, test_proc)
-mat_ranger <- confusionMatrix(data = pred_ranger , reference = test_proc$isFraud)
+
 ```
 The results from the rpart model present the same characteristic as the glm model. The sensitivity of the model is great because we now got 0.999. The sensitivity is almost optimized to 1, but the specificity continues to be a problem. We can’t complain if we got a specificity that is 3 time better than the one in the first model but still, we have to wonder is this is the best that we can get. The last model we are going to try is a random forest using the library ranger. Our model is so optimized in the recipe and the processing resources in the computer are so limited that we will go on with static tuning parameters. We already know that the ranger model has three tuning parameters that are the mtry, splitrule and min.node.size. We are also going to change the number of trees that will get generated so we can actually get some results. For our mtry we are going to use the total number of variables that in this case are 8. The splitrule is going to be left to the default value “gini”. The min.node.size is going to be left at 1 because it is the smallest number allowed for a classification model. We won't be able to get a good graph from this model because we are not using many tuning parameters.We will be relying on the single accuracy, specificitu and sensitivity of these parameters.
 ```{r result_ranger, echo= FALSE, eval=TRUE, results='hide', warning=FALSE, error=FALSE, message=FALSE}
-result <- bind_rows(result, tibble(method="ranger",
-                                   sensitivity = sensitivity(mat_rf$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
-                                   specificity = specificity(mat_rf$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
-                                   overall = accuracy(mat_rf$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5)))
-result %>% knitr::kable()
+
 ```
 To be very honest I tried each value of the mtry individually in order to know if that was the right direction. I already knew that 8 would give the best answer but it would have taken 2 days to get to print my report. Sacrifices were made. All of the work and effort we put in this project was to get this final table with a good comparison of three different models. What we get to see is that our final two models aren’t that different. 
 
