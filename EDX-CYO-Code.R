@@ -64,13 +64,15 @@ for (file in file_list){
 rm(file, file_list)
 setwd("..")
 dataset <- dataset %>% mutate( combination = as.factor( paste(str_sub(nameOrig,end = 1),str_sub(nameDest,end = 1), sep = "")), isFraud = as.factor(isFraud), isFlaggedFraud = as.factor(isFlaggedFraud), type = as.factor(type))
+head(dataset)
+dataset[1,]
 dataset %>% group_by(combination, isFraud) %>% summarize(count = n())
-dataset %>% group_by(isFlaggedFraud, isFraud) %>% summarize(count = n())
 dataset_c <- dataset %>% filter(combination == "CC") %>% select(-combination,-X1,-step, -nameDest, -nameOrig)
 rm(dataset)
 nrow(dataset_c)
 ncol(dataset_c)
 skim(dataset_c)
+dataset_c %>% group_by(isFlaggedFraud, isFraud) %>% summarize(count = n())
 dataset_c %>% group_by(type) %>% summarize(total = sum(amount), count = n())
 dataset_c %>% ggplot(aes(amount)) + geom_histogram()
 dataset_c %>% select(amount, newbalanceDest, newbalanceOrig, oldbalanceDest, oldbalanceOrg) %>% correlate() %>% rplot(shape = 15, colors = c("red","green"))
@@ -89,36 +91,50 @@ head(data_juice)
 test_proc <- bake(data_prep, new_data = data_test)
 control <- trainControl(method = "cv", number = 10, p = 0.9)
 rm(dataset_c,data_train,data_test,data_split,data_rec,data_prep)
-train_glm <- train(isFraud ~ ., 
-                   method = "glm", 
+train_glm <- train(isFraud ~ .,
+                   method = "glm",
                    data = data_juice,
                    trControl = control)
 pred_glm <- predict(train_glm, test_proc)
 mat_glm <- confusionMatrix(data = pred_glm , reference = test_proc$isFraud)
-result <- tibble(method="glm",sensitivity = , specificity = , overall = )
+result <- tibble(method="glm",
+                 sensitivity = sensitivity(mat_glm$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
+                 specificity = specificity(mat_glm$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
+                 overall = accuracy(mat_glm$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5))
 result
-train_rpart <- train(isFraud ~ ., 
-                     method = "rpart", 
+rm(mat_glm, train_glm, pred_glm)
+gc()
+train_rpart <- train(isFraud ~ .,
+                     method = "rpart",
                      data = data_juice,
                      tuneGrid = data.frame(cp = seq(0,1,0.25)),
                      trControl = control)
-plot(train_rpart)
-plot(train_rpart$finalModel, margin = 0.1)
 pred_rpart <- predict(train_rpart, test_proc)
 mat_rpart <- confusionMatrix(data = pred_rpart , reference = test_proc$isFraud)
-result <- tibble(method="rpart",sensitivity = , specificity = , overall = )
+plot(train_rpart)
+plot(train_rpart$finalModel, margin = 0.1)
+result <- bind_rows(result, tibble(method="rpart",
+                                   sensitivity = sensitivity(mat_rpart$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
+                                   specificity = specificity(mat_rpart$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
+                                   overall = accuracy(mat_rpart$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5)))
 result
-train_ranger<- train(isFraud ~ ., 
-                     method = "ranger", 
+rm(mat_rpart, train_rpart, pred_rpart)
+gc()
+train_ranger<- train(isFraud ~ .,
+                     method = "ranger",
                      data = data_juice,
-                     tuneGrid = data.frame(mtry = seq(2,5,1),
+                     tuneGrid = data.frame(mtry = 8,
                                            splitrule = "gini",
-                                           min.node.size = seq(1,4,1)),
+                                           min.node.size = 1
+                     ),
                      trControl = control,
                      num.trees = 100)
-plot(train_ranger)
 pred_ranger <- predict(train_ranger, test_proc)
 mat_ranger <- confusionMatrix(data = pred_ranger , reference = test_proc$isFraud)
-result <- tibble(method="ranger",sensitivity = , specificity = , overall = )
+plot(train_ranger)
+result <- bind_rows(result, tibble(method="ranger",
+                                   sensitivity = sensitivity(mat_rf$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
+                                   specificity = specificity(mat_rf$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5),
+                                   overall = accuracy(mat_rf$table) %>% pull(.estimate) %>% round(5) %>% format(nsmall = 5)))
 result
 
